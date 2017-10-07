@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>flappy bird</title>
+  <style>
+    body{
+      overflow: hidden;
+      background-color: #f4f4f4;
+    }
+    canvas{
+      margin: 50px 50%;
+      transform: translate(-50%,0);
+    }
+  </style>
+</head>
+<body>
+<canvas width="800" height="600"></canvas>
+<script src="./js/index.js"></script>
+<script>
+  var c1 = document.querySelector('canvas');
+//  c1.style.border = "1px solid #ccc";
+  var ctx = c1.getContext('2d');
+
+  function loadImgs(imgArr, callback) {
+    var count = 0;
+    var imgList = {};
+    for (var i = 0; i < imgArr.length; i++) {
+      var img = new Image();
+      img.src = "./images/" + imgArr[i] + ".png";
+      imgList[imgArr[i]] = img;
+      img.onload = function () {
+        count++;
+        if (count === imgArr.length) {
+          callback(imgList);
+        }
+      }
+    }
+  }
+
+  loadImgs(['sky', 'birds', 'land', 'pipe1', 'pipe2'], function (imgList) {
+    var isStart = false;
+    var beginPlayTime = 0;
+    var lastTime = 0;
+    var lastMin;
+    var lastSec;
+    var lastMSec;
+    /*创建背景对象，需要两个*/
+    var bgImg = new Sky({
+      ctx: ctx,
+      bgImg: imgList['sky'],
+      skyX: 0
+    });
+    var bgImg1 = new Sky({
+      ctx: ctx,
+      bgImg: imgList['sky'],
+      skyX: imgList['sky'].width
+    });
+
+    /*创建小鸟对象*/
+    var bird = new Bird({
+      ctx: ctx,
+      birdImg: imgList['birds']
+    });
+
+    /*创建水管对象*/
+    var pipes = [];
+    for (var i = 0; i < 6; i++) {
+      pipes.push(new Pipes({
+        ctx: ctx,
+        topPipe: imgList['pipe2'],
+        bottomPipe: imgList['pipe1'],
+        x: imgList['pipe1'].width * 3 * i + 400
+      }));
+
+    }
+
+    /*创建地面对象*/
+    var lands = [];
+    for (var i = 0; i < 4; i++) {
+      lands.push(new Land({
+          ctx: ctx,
+          landImg: imgList['land'],
+          x: i * (imgList['land'].width),
+          y: c1.height - imgList['land'].height
+        })
+      );
+    }
+
+    /*定义两次重绘间的时间间隔*/
+    var sTime = new Date().getTime();
+    var eTime = new Date().getTime();
+    var offsetTime = 0;
+
+    function fly() {
+      ctx.beginPath();
+      ctx.clearRect(0, 0, c1.width, c1.height);
+
+      /*取得两次绘画间的时间间隔*/
+      eTime = new Date().getTime();
+      offsetTime = eTime - sTime;
+      sTime = eTime;
+
+      /*绘制背景天空*/
+      bgImg.drawSky();
+      bgImg1.drawSky();
+
+      /*绘制小鸟*/
+      bird.drawBird(offsetTime);
+
+      /*绘制水管*/
+      pipes.forEach(function (item) {
+        item.drawPipes();
+      })
+
+      /*绘制地面*/
+      lands.forEach(function (item) {
+        item.drawLand();
+      });
+
+      /*判断触地*/
+      if (bird.canvasY + 43 > c1.height - 112) {
+        ctx.save();
+        ctx.font = "35px 微软雅黑";
+        ctx.fillStyle = "orange";
+        ctx.fillText(lastMin + ':' + lastSec + ':' + lastMSec, 625, 50);
+        ctx.restore();
+        return;
+      }
+
+      /*判断撞水管*/
+      if (ctx.isPointInPath(bird.canvasX + 6, bird.canvasY + 6) ||  //左上
+        ctx.isPointInPath(bird.canvasX + 41, bird.canvasY + 39) ||  //右下
+        ctx.isPointInPath(bird.canvasX + 41, bird.canvasY + 6) || //右上
+        ctx.isPointInPath(bird.canvasX + 6, bird.canvasY + 39)) { //左下
+        ctx.save();
+        ctx.font = "35px 微软雅黑";
+        ctx.fillStyle = "orange";
+        ctx.fillText(lastMin + ':' + lastSec + ':' + lastMSec, 625, 50);
+        ctx.restore();
+        return;
+      }
+
+      if (isStart) {
+        lastTime = sTime - beginPlayTime;
+        lastMin = Math.floor(lastTime / 1000 / 60) <= 9 ? '0' + Math.floor(lastTime / 1000 / 60) : Math.floor(lastTime / 1000 / 60);
+        lastSec = Math.floor(lastTime / 1000) <= 9 ? '0' + Math.floor(lastTime / 1000) : Math.floor(lastTime / 1000);
+        lastMSec = Math.floor((lastTime / 1000 - lastSec) * 100) <= 9 ? '0' + Math.floor((lastTime / 1000 - lastSec) * 100) : Math.floor((lastTime / 1000 - lastSec) * 100);
+        window.requestAnimationFrame(fly);
+        ctx.save();
+        ctx.font = "35px 微软雅黑";
+        ctx.fillStyle = "orange";
+        ctx.fillText(lastMin + ':' + lastSec + ':' + lastMSec, 625, 50);
+        ctx.restore();
+      }
+    }
+
+    fly();
+
+    /*点击开始文本*/
+    ctx.save();
+    ctx.font = "35px 微软雅黑";
+    ctx.fillStyle = "orange";
+    ctx.fillText('点击开始', 315, 565);
+    ctx.restore();
+
+    c1.onclick = function () {
+      if (!isStart) {
+        isStart = true;
+        beginPlayTime = sTime = new Date().getTime();
+        fly();
+      }
+      else {
+        bird.speed = -0.25;
+        bird.curLean = 0;
+      }
+    }
+  });
+
+</script>
+</body>
+</html>
